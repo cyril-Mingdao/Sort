@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>學生答題互動網頁</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body, html {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            background-color: #333;
+        }
+
+        #container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+        }
+
+        .pane {
+            position: relative;
+            width: 100%;
+            padding: 12px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 預設上 20% 下 80% (2:8 比例) */
+        #top-pane {
+            height: 20%; 
+            background-color: #2c3e50;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        #bottom-pane {
+            flex: 1;
+            background-color: #ecf0f1;
+            color: #2c3e50;
+            min-height: 0;
+        }
+
+        /* 可拖曳分隔線 */
+        #resizer {
+            height: 16px;
+            background: #e67e22;
+            cursor: row-resize;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            border-top: 2px solid #d35400;
+            border-bottom: 2px solid #d35400;
+            flex-shrink: 0;
+        }
+        
+        #resizer::after {
+            content: ":::";
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            letter-spacing: 2px;
+            margin-top: -4px;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+            z-index: 10;
+            flex-shrink: 0;
+        }
+
+        label {
+            font-weight: bold;
+            font-size: 1.1rem;
+            white-space: nowrap;
+        }
+
+        select {
+            padding: 8px 12px;
+            font-size: 1rem;
+            border: 2px solid rgba(0,0,0,0.2);
+            border-radius: 8px;
+            background-color: white;
+            color: #333;
+            flex-grow: 1;
+            max-width: 300px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        /* 新增：上一步、下一步按鈕樣式 */
+        .nav-btn {
+            padding: 6px 12px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border: 2px solid rgba(0,0,0,0.2);
+            border-radius: 8px;
+            background-color: white;
+            color: #333;
+            cursor: pointer;
+            outline: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.15s, opacity 0.15s;
+        }
+
+        .nav-btn:active {
+            background-color: #ddd;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* 上方高對比全螢幕覆蓋層 */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000000; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: 900;
+            z-index: 50;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.15s ease;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        #top-overlay { 
+            background-color: #000000;
+            color: #00ffff; /* 高對比青色文字 */
+        }
+
+        #top-overlay-text { 
+            line-height: 1; 
+            white-space: nowrap; 
+            margin: 0;
+            padding: 0;
+            display: inline-block;
+        }
+
+        /* 下方數字色塊容器 (網格佈局，占滿剩餘空間) */
+        #grid-container {
+            flex: 1;
+            display: grid;
+            gap: 10px;
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+        }
+
+        /* 數字色塊通用樣式 */
+        .option-btn {
+            position: relative; /* 為了讓右上角 X 按鈕絕對定位 */
+            border: none;
+            border-radius: 12px;
+            font-weight: bold;
+            cursor: grab;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+            transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+            touch-action: none; /* 防止手機拖曳時觸發頁面滾動 */
+        }
+
+        .option-btn:active {
+            cursor: grabbing;
+        }
+
+        /* 拖曳中的視覺效果 */
+        .option-btn.dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.3);
+            z-index: 20;
+        }
+
+        /* 新增：右上角 X 移除按鈕 */
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.35);
+            color: white;
+            font-size: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            z-index: 30;
+            transition: background-color 0.2s;
+            text-shadow: none;
+        }
+
+        .close-btn:hover {
+            background-color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* 針對黃色(底色亮)的 X 按鈕特別處理深色，避免看不見 */
+        .btn-color-4 .close-btn {
+            background-color: rgba(0, 0, 0, 0.15);
+            color: #333;
+        }
+        .btn-color-4 .close-btn:hover {
+            background-color: rgba(0, 0, 0, 0.3);
+        }
+
+        /* 各數字色塊色彩設定 (新增7-10) */
+        .btn-color-1 { background-color: #e74c3c; color: white; } /* 1: 紅 */
+        .btn-color-2 { background-color: #3498db; color: white; } /* 2: 藍 */
+        .btn-color-3 { background-color: #2ecc71; color: white; } /* 3: 綠 */
+        .btn-color-4 { background-color: #f1c40f; color: #333;   } /* 4: 黃 */
+        .btn-color-5 { background-color: #9b59b6; color: white; } /* 5: 紫 */
+        .btn-color-6 { background-color: #1abc9c; color: white; } /* 6: 青 */
+        .btn-color-7 { background-color: #e67e22; color: white; } /* 7: 橘 */
+        .btn-color-8 { background-color: #34495e; color: white; } /* 8: 深藍 */
+        .btn-color-9 { background-color: #7f8c8d; color: white; } /* 9: 灰 */
+        .btn-color-10{ background-color: #8e44ad; color: white; } /* 10: 深紫 */
+
+    </style>
+</head>
+<body>
+
+<div id="container">
+    
+    <!-- 上區塊 (比例 2) -->
+    <div id="top-pane" class="pane">
+        <div class="controls">
+            <label for="group-select">組別：</label>
+            <select id="group-select">
+                <option value="" disabled selected>▾ 請選擇組別</option>
+            </select>
+        </div>
+        <!-- 選擇組別後的高對比全滿覆蓋層 -->
+        <div id="top-overlay" class="overlay">
+            <span id="top-overlay-text">第 1 組</span>
+        </div>
+    </div>
+
+    <!-- 可活動式中間分隔線 -->
+    <div id="resizer"></div>
+
+    <!-- 下區塊 (比例 8) -->
+    <div id="bottom-pane" class="pane">
+        <div class="controls">
+            <label for="mode-select">選項：</label>
+            <select id="mode-select">
+                <option value="1-4">選項 1-4</option>
+                <option value="1-5">選項 1-5</option>
+                <!-- 將 1-6 設為預設值 -->
+                <option value="1-6" selected>選項 1-6</option>
+                <!-- 擴充選項 -->
+                <option value="1-7">選項 1-7</option>
+                <option value="1-8">選項 1-8</option>
+                <option value="1-9">選項 1-9</option>
+                <option value="1-10">選項 1-10</option>
+            </select>
+            <!-- 上一步、下一步按鈕 -->
+            <button id="undo-btn" class="nav-btn" title="上一步" disabled>&#8634;</button>
+            <button id="redo-btn" class="nav-btn" title="下一步" disabled>&#8635;</button>
+        </div>
+        <div id="grid-container"></div>
+    </div>
+
+</div>
+
+<script>
+    // --- 元素取得 ---
+    const groupSelect = document.getElementById('group-select');
+    const modeSelect = document.getElementById('mode-select');
+    const undoBtn = document.getElementById('undo-btn');
+    const redoBtn = document.getElementById('redo-btn');
+    const topOverlay = document.getElementById('top-overlay');
+    const topOverlayText = document.getElementById('top-overlay-text');
+    const gridContainer = document.getElementById('grid-container');
+    const topPane = document.getElementById('top-pane');
+    const bottomPane = document.getElementById('bottom-pane');
+    const container = document.getElementById('container');
+
+    // --- 1. 組別選單初始化 (第1組 至 第20組) ---
+    for (let i = 1; i <= 20; i++) {
+        let option = document.createElement('option');
+        option.value = `第 ${i} 組`;
+        option.textContent = `第 ${i} 組`;
+        groupSelect.appendChild(option);
+    }
+
+    groupSelect.addEventListener('change', function() {
+        topOverlayText.textContent = this.value;
+        topOverlay.classList.add('active');
+        adjustFontSize();
+    });
+
+    topOverlay.addEventListener('click', function() {
+        this.classList.remove('active');
+    });
+
+
+    // --- 2. 下區塊數字色塊與歷史紀錄 (Undo/Redo) 邏輯 ---
+    // 擴充對應的數量
+    const modes = {
+        '1-4': 4,
+        '1-5': 5,
+        '1-6': 6,
+        '1-7': 7,
+        '1-8': 8,
+        '1-9': 9,
+        '1-10': 10
+    };
+
+    let draggedItem = null;
+    let initialOrder = [];
+    
+    // 歷史狀態堆疊
+    let historyStack = [];
+    let historyIndex = -1;
+
+    // 儲存當前版面狀態至歷史紀錄
+    function saveState() {
+        const currentState = Array.from(gridContainer.children).map(btn => btn.dataset.val);
+        // 如果當前不是在最新狀態下進行了新操作，則截斷後面的復原紀錄
+        if (historyIndex < historyStack.length - 1) {
+            historyStack = historyStack.slice(0, historyIndex + 1);
+        }
+        historyStack.push(currentState);
+        historyIndex++;
+        updateNavButtons();
+    }
+
+    // 更新上一步/下一步按鈕的可用狀態
+    function updateNavButtons() {
+        undoBtn.disabled = historyIndex <= 0;
+        redoBtn.disabled = historyIndex >= historyStack.length - 1;
+    }
+
+    // 根據紀錄載入畫面狀態
+    function loadState(stateArray) {
+        gridContainer.innerHTML = '';
+        stateArray.forEach(val => {
+            const btn = createButton(val);
+            gridContainer.appendChild(btn);
+        });
+        updateGridLayout();
+        adjustFontSize();
+        updateNavButtons();
+    }
+
+    // 上一步與下一步按鈕事件
+    undoBtn.addEventListener('click', () => {
+        if (historyIndex > 0) {
+            historyIndex--;
+            loadState(historyStack[historyIndex]);
+        }
+    });
+
+    redoBtn.addEventListener('click', () => {
+        if (historyIndex < historyStack.length - 1) {
+            historyIndex++;
+            loadState(historyStack[historyIndex]);
+        }
+    });
+
+    // 動態判斷直式/橫式並設定 Grid 網格佈局 (根據當前剩餘的色塊數量)
+    function updateGridLayout() {
+        const count = gridContainer.children.length;
+        if (count === 0) return; // 全刪除防錯
+
+        const isPortrait = window.innerHeight > window.innerWidth;
+
+        if (isPortrait) {
+            // 直式螢幕：強制為 N列 x 1欄 (保留方排列特色)
+            gridContainer.style.gridTemplateColumns = '1fr';
+            gridContainer.style.gridTemplateRows = `repeat(${count}, 1fr)`;
+        } else {
+            // 橫式螢幕：強制為 1列 x N欄
+            gridContainer.style.gridTemplateColumns = `repeat(${count}, 1fr)`;
+            gridContainer.style.gridTemplateRows = '1fr';
+        }
+    }
+
+    // 獨立出建立單一按鈕的功能
+    function createButton(val) {
+        const btn = document.createElement('div');
+        btn.className = `option-btn btn-color-${val}`;
+        btn.dataset.val = val; // 用來記錄是數字幾，方便還原
+        
+        // 數字文字節點
+        const textNode = document.createTextNode(val);
+        btn.appendChild(textNode);
+        
+        // 新增：右上角的 X 刪除按鈕
+        const closeBtn = document.createElement('div');
+        closeBtn.className = 'close-btn';
+        closeBtn.innerHTML = '&#10006;'; // ✖
+        
+        // 點擊 X 時移除此方塊並記錄狀態
+        closeBtn.addEventListener('pointerdown', (e) => {
+            e.stopPropagation(); // 防止觸發父層的拖曳動作
+            btn.remove();
+            saveState();
+            updateGridLayout();
+            adjustFontSize();
+        });
+        
+        btn.appendChild(closeBtn);
+        enableDragAndDrop(btn);
+        
+        return btn;
+    }
+
+    // 初始化/切換選項模式
+    function renderGrid(modeKey) {
+        gridContainer.innerHTML = '';
+        const count = modes[modeKey];
+
+        for (let i = 1; i <= count; i++) {
+            const btn = createButton(i);
+            gridContainer.appendChild(btn);
+        }
+
+        updateGridLayout();
+        setTimeout(adjustFontSize, 20);
+
+        // 重置歷史紀錄並存入初始狀態
+        historyStack = [];
+        historyIndex = -1;
+        saveState();
+    }
+
+    // 拖曳重排核心機制 (Pointer Events)
+    function enableDragAndDrop(btn) {
+        btn.addEventListener('pointerdown', (e) => {
+            // 若點擊的是 X 按鈕，則不觸發拖曳
+            if (e.target.closest('.close-btn')) return;
+
+            draggedItem = btn;
+            btn.classList.add('dragging');
+            btn.setPointerCapture(e.pointerId);
+            
+            // 紀錄剛抓取時的順序
+            initialOrder = Array.from(gridContainer.children).map(b => b.dataset.val);
+        });
+
+        btn.addEventListener('pointermove', (e) => {
+            if (!draggedItem) return;
+
+            draggedItem.style.pointerEvents = 'none';
+            const elemBelow = document.elementFromPoint(e.clientX, e.clientY);
+            draggedItem.style.pointerEvents = '';
+
+            if (!elemBelow) return;
+            const targetItem = elemBelow.closest('.option-btn');
+
+            if (targetItem && targetItem !== draggedItem && targetItem.parentNode === gridContainer) {
+                const children = Array.from(gridContainer.children);
+                const dragIdx = children.indexOf(draggedItem);
+                const targetIdx = children.indexOf(targetItem);
+
+                if (dragIdx < targetIdx) {
+                    gridContainer.insertBefore(draggedItem, targetItem.nextSibling);
+                } else {
+                    gridContainer.insertBefore(draggedItem, targetItem);
+                }
+            }
+        });
+
+        const endDrag = (e) => {
+            if (draggedItem) {
+                draggedItem.classList.remove('dragging');
+                try {
+                    btn.releasePointerCapture(e.pointerId);
+                } catch(err){}
+                draggedItem = null;
+                
+                // 拖放結束時，判斷順序是否改變，若有改變則存入歷史紀錄
+                const finalOrder = Array.from(gridContainer.children).map(b => b.dataset.val);
+                if (initialOrder.join(',') !== finalOrder.join(',')) {
+                    saveState();
+                }
+                
+                adjustFontSize();
+            }
+        };
+
+        btn.addEventListener('pointerup', endDrag);
+        btn.addEventListener('pointercancel', endDrag);
+    }
+
+    // 頁面載入時初始為 1-6 模式
+    renderGrid('1-6');
+    modeSelect.addEventListener('change', function() { 
+        renderGrid(this.value); 
+    });
+
+
+    // --- 3. 字體自動調整邏輯（最大化填滿，防溢出） ---
+    function adjustFontSize() {
+        // (1) 上區塊高對比文字大小計算
+        const tWidth = topPane.clientWidth;
+        const tHeight = topPane.clientHeight;
+        const tSize = Math.min(tHeight * 0.75, tWidth / 4.5); 
+        topOverlayText.style.fontSize = `${tSize}px`;
+
+        // (2) 下區塊數字色塊文字大小計算
+        const buttons = gridContainer.querySelectorAll('.option-btn');
+        buttons.forEach(btn => {
+            const bWidth = btn.clientWidth;
+            const bHeight = btn.clientHeight;
+            if (bWidth > 0 && bHeight > 0) {
+                const fontSize = Math.min(bHeight * 0.55, bWidth * 0.55);
+                btn.style.fontSize = `${fontSize}px`;
+            }
+        });
+    }
+
+    function handleResize() {
+        updateGridLayout();
+        adjustFontSize();
+    }
+
+    window.addEventListener('load', handleResize);
+    window.addEventListener('resize', handleResize);
+
+
+    // --- 4. 可活動式中間分隔線拖曳邏輯 ---
+    const resizer = document.getElementById('resizer');
+    let isResizing = false;
+    const MIN_TOP_HEIGHT = 60;
+    const MIN_BOTTOM_HEIGHT = 120;
+
+    resizer.addEventListener('mousedown', initDrag);
+    resizer.addEventListener('touchstart', initDrag, {passive: false});
+
+    function initDrag(e) {
+        isResizing = true;
+        resizer.style.background = '#d35400';
+        e.preventDefault(); 
+    }
+
+    window.addEventListener('mousemove', doDrag);
+    window.addEventListener('touchmove', doDrag, {passive: false});
+
+    function doDrag(e) {
+        if (!isResizing) return;
+        
+        let clientY = e.clientY;
+        if(e.touches && e.touches.length > 0) {
+            clientY = e.touches[0].clientY;
+        }
+
+        const containerHeight = container.offsetHeight;
+        let newTopHeight = clientY;
+
+        if (newTopHeight < MIN_TOP_HEIGHT) newTopHeight = MIN_TOP_HEIGHT;
+        if (newTopHeight > (containerHeight - MIN_BOTTOM_HEIGHT)) {
+            newTopHeight = containerHeight - MIN_BOTTOM_HEIGHT;
+        }
+
+        topPane.style.height = `${newTopHeight}px`;
+
+        handleResize(); 
+    }
+
+    window.addEventListener('mouseup', stopDrag);
+    window.addEventListener('touchend', stopDrag);
+
+    function stopDrag() {
+        if(isResizing) {
+            isResizing = false;
+            resizer.style.background = '#e67e22';
+            handleResize();
+        }
+    }
+
+</script>
+
+</body>
+</html>
