@@ -12,7 +12,7 @@
     <meta name="author" content="詹宗龍（臺中明道中學）">
     <meta name="copyright" content="© 2026 詹宗龍（臺中明道中學）。保留一切權利。">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>學生答題互動網頁</title>
+    <title>排序題</title>
     <style>
         * {
             box-sizing: border-box;
@@ -580,7 +580,11 @@
     // --- 3. 字體自動調整邏輯（最大化填滿，防溢出） ---
     function adjustFontSize() {
         // (1) 上區塊高對比文字大小計算
-        const tWidth = topPane.clientWidth;
+        // 組別大字讓開右上角 QR code 鈕，避免被遮住
+        const qrBtn = document.getElementById('qr-btn');
+        const qrSpace = qrBtn ? qrBtn.offsetWidth + 25 : 0;
+        topOverlay.style.paddingRight = `${qrSpace}px`;
+        const tWidth = topPane.clientWidth - qrSpace;
         const tHeight = topPane.clientHeight;
         const tSize = Math.min(tHeight * 0.75, tWidth / 4.5); 
         topOverlayText.style.fontSize = `${tSize}px`;
