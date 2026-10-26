@@ -259,6 +259,42 @@
         .btn-color-9 { background-color: #7f8c8d; color: white; } /* 9: 灰 */
         .btn-color-10{ background-color: #8e44ad; color: white; } /* 10: 深紫 */
 
+        /* QR code：右上角按鈕，點了全螢幕顯示，再點一下關閉 */
+        #qr-btn {
+            position: absolute;
+            top: 12px;
+            right: 15px;
+            height: calc(100% - 24px);
+            max-height: 140px;
+            aspect-ratio: 1 / 1;
+            padding: 6px;
+            border: none;
+            border-radius: 8px;
+            background-color: white;
+            cursor: pointer;
+            z-index: 60;
+        }
+
+        #qr-btn svg { width: 100%; height: 100%; display: block; }
+        #top-pane .controls { padding-right: min(150px, calc(20vh - 4px)); }
+
+        #qr-full {
+            position: fixed;
+            inset: 0;
+            background-color: white;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 2vh;
+            z-index: 1000;
+            cursor: pointer;
+        }
+
+        #qr-full.active { display: flex; }
+        #qr-full svg { width: 92%; height: 84%; display: block; }
+        #qr-full .qr-url { color: #111; font-weight: bold; font-size: clamp(16px, 3.5vh, 40px); }
+
     </style>
 </head>
 <body>
@@ -274,6 +310,7 @@
             </select>
         </div>
         <!-- 選擇組別後的高對比全滿覆蓋層 -->
+        <button id="qr-btn" type="button" title="顯示本網頁 QR code" aria-label="顯示本網頁 QR code"><svg viewBox="0 0 33 33" class="segno"><path fill="#fff" d="M0 0h33v33h-33z"/><path class="qrline" stroke="#000" d="M2 2.5h7m2 0h1m1 0h1m2 0h1m1 0h3m3 0h7m-29 1h1m5 0h1m1 0h3m2 0h2m2 0h1m4 0h1m5 0h1m-29 1h1m1 0h3m1 0h1m1 0h1m1 0h3m1 0h3m2 0h2m1 0h1m1 0h3m1 0h1m-29 1h1m1 0h3m1 0h1m1 0h2m1 0h2m1 0h1m2 0h1m1 0h2m1 0h1m1 0h3m1 0h1m-29 1h1m1 0h3m1 0h1m2 0h1m1 0h2m3 0h4m2 0h1m1 0h3m1 0h1m-29 1h1m5 0h1m3 0h1m7 0h1m1 0h1m1 0h1m5 0h1m-29 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-21 1h1m3 0h1m2 0h1m3 0h2m-21 1h1m5 0h1m1 0h2m1 0h2m2 0h3m1 0h1m1 0h2m2 0h3m-26 1h1m5 0h1m2 0h5m3 0h1m3 0h2m1 0h2m-28 1h2m1 0h1m1 0h2m3 0h1m2 0h4m3 0h1m1 0h3m-25 1h2m1 0h1m3 0h1m2 0h1m1 0h2m1 0h2m1 0h1m6 0h1m-25 1h2m3 0h1m1 0h1m3 0h2m2 0h1m2 0h5m4 0h1m-27 1h4m1 0h1m3 0h1m3 0h6m1 0h3m2 0h2m-29 1h1m2 0h1m1 0h2m3 0h2m3 0h2m1 0h1m3 0h1m2 0h2m-25 1h2m3 0h1m1 0h1m1 0h1m3 0h2m1 0h1m2 0h2m1 0h1m1 0h1m1 0h1m-29 1h2m1 0h2m1 0h1m1 0h2m1 0h1m3 0h3m5 0h1m1 0h2m-27 1h1m1 0h2m1 0h1m2 0h1m1 0h1m1 0h3m1 0h1m2 0h2m1 0h3m1 0h3m-29 1h2m3 0h5m1 0h1m3 0h1m1 0h1m1 0h1m4 0h2m2 0h1m-29 1h1m1 0h1m1 0h2m5 0h3m1 0h2m2 0h3m-22 1h1m1 0h1m1 0h9m1 0h1m2 0h1m2 0h5m1 0h3m-21 1h1m1 0h2m2 0h3m1 0h1m1 0h1m3 0h2m-26 1h7m3 0h3m2 0h6m1 0h1m1 0h3m-27 1h1m5 0h1m3 0h1m1 0h1m1 0h3m1 0h3m3 0h1m2 0h1m-28 1h1m1 0h3m1 0h1m2 0h1m3 0h2m1 0h1m1 0h8m2 0h1m-29 1h1m1 0h3m1 0h1m2 0h1m1 0h1m2 0h5m1 0h2m1 0h1m1 0h2m1 0h1m-29 1h1m1 0h3m1 0h1m4 0h7m1 0h9m-28 1h1m5 0h1m2 0h2m3 0h1m1 0h1m1 0h1m4 0h1m1 0h2m1 0h1m-29 1h7m1 0h2m1 0h1m1 0h2m2 0h1m1 0h1m4 0h1m1 0h1"/></svg></button>
         <div id="top-overlay" class="overlay">
             <span id="top-overlay-text">第 1 組</span>
         </div>
@@ -304,6 +341,11 @@
         <div id="grid-container"></div>
     </div>
 
+</div>
+
+<div id="qr-full" title="點一下關閉">
+    <svg viewBox="0 0 33 33" class="segno"><path fill="#fff" d="M0 0h33v33h-33z"/><path class="qrline" stroke="#000" d="M2 2.5h7m2 0h1m1 0h1m2 0h1m1 0h3m3 0h7m-29 1h1m5 0h1m1 0h3m2 0h2m2 0h1m4 0h1m5 0h1m-29 1h1m1 0h3m1 0h1m1 0h1m1 0h3m1 0h3m2 0h2m1 0h1m1 0h3m1 0h1m-29 1h1m1 0h3m1 0h1m1 0h2m1 0h2m1 0h1m2 0h1m1 0h2m1 0h1m1 0h3m1 0h1m-29 1h1m1 0h3m1 0h1m2 0h1m1 0h2m3 0h4m2 0h1m1 0h3m1 0h1m-29 1h1m5 0h1m3 0h1m7 0h1m1 0h1m1 0h1m5 0h1m-29 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-21 1h1m3 0h1m2 0h1m3 0h2m-21 1h1m5 0h1m1 0h2m1 0h2m2 0h3m1 0h1m1 0h2m2 0h3m-26 1h1m5 0h1m2 0h5m3 0h1m3 0h2m1 0h2m-28 1h2m1 0h1m1 0h2m3 0h1m2 0h4m3 0h1m1 0h3m-25 1h2m1 0h1m3 0h1m2 0h1m1 0h2m1 0h2m1 0h1m6 0h1m-25 1h2m3 0h1m1 0h1m3 0h2m2 0h1m2 0h5m4 0h1m-27 1h4m1 0h1m3 0h1m3 0h6m1 0h3m2 0h2m-29 1h1m2 0h1m1 0h2m3 0h2m3 0h2m1 0h1m3 0h1m2 0h2m-25 1h2m3 0h1m1 0h1m1 0h1m3 0h2m1 0h1m2 0h2m1 0h1m1 0h1m1 0h1m-29 1h2m1 0h2m1 0h1m1 0h2m1 0h1m3 0h3m5 0h1m1 0h2m-27 1h1m1 0h2m1 0h1m2 0h1m1 0h1m1 0h3m1 0h1m2 0h2m1 0h3m1 0h3m-29 1h2m3 0h5m1 0h1m3 0h1m1 0h1m1 0h1m4 0h2m2 0h1m-29 1h1m1 0h1m1 0h2m5 0h3m1 0h2m2 0h3m-22 1h1m1 0h1m1 0h9m1 0h1m2 0h1m2 0h5m1 0h3m-21 1h1m1 0h2m2 0h3m1 0h1m1 0h1m3 0h2m-26 1h7m3 0h3m2 0h6m1 0h1m1 0h3m-27 1h1m5 0h1m3 0h1m1 0h1m1 0h3m1 0h3m3 0h1m2 0h1m-28 1h1m1 0h3m1 0h1m2 0h1m3 0h2m1 0h1m1 0h8m2 0h1m-29 1h1m1 0h3m1 0h1m2 0h1m1 0h1m2 0h5m1 0h2m1 0h1m1 0h2m1 0h1m-29 1h1m1 0h3m1 0h1m4 0h7m1 0h9m-28 1h1m5 0h1m2 0h2m3 0h1m1 0h1m1 0h1m4 0h1m1 0h2m1 0h1m-29 1h7m1 0h2m1 0h1m1 0h2m2 0h1m1 0h1m4 0h1m1 0h1"/></svg>
+    <div class="qr-url">https://cyril-mingdao.github.io/Sort/</div>
 </div>
 
 <script>
@@ -613,6 +655,24 @@
             handleResize();
         }
     }
+
+
+    // --- QR code 全螢幕顯示 ---
+    const qrFull = document.getElementById('qr-full');
+    let qrEnteredFs = false;
+    document.getElementById('qr-btn').addEventListener('click', function(e) {
+        e.stopPropagation();
+        qrFull.classList.add('active');
+        const el = document.documentElement;
+        if (!document.fullscreenElement && el.requestFullscreen) {
+            el.requestFullscreen().then(() => { qrEnteredFs = true; }).catch(() => {});
+        }
+    });
+    qrFull.addEventListener('click', function() {
+        this.classList.remove('active');
+        if (qrEnteredFs && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+        qrEnteredFs = false;
+    });
 
 </script>
 
